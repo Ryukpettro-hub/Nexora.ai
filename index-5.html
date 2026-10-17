@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>NEXORA AI</title>
+<meta name="description" content="NEXORA AI: title, description, script and image prompt tools for creators.">
+<meta name="theme-color" content="#000000">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%237c3aed'/%3E%3Ctext x='32' y='44' font-size='36' text-anchor='middle' fill='white'%3E%E2%9C%A6%3C/text%3E%3C/svg%3E">
+<noscript><style>.reveal{opacity:1;transform:none}</style></noscript>
+<style>
+/* ============ 1. THEME: change colors here ============ */
+:root{
+  --bg:#000; --panel:#0c0a14; --line:#2a2440; --text:#f2f0fa; --muted:#a39fba;
+  --purple:#8b5cf6; --blue:#3b82f6;
+  --grad:linear-gradient(135deg,var(--purple),var(--blue));
+  --btn:linear-gradient(135deg,#7c3aed,#2563eb); /* darker pair so white button text is easy to read */
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+  color-scheme:dark;
+}
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-behavior:smooth;scroll-padding-top:calc(72px + env(safe-area-inset-top,0px))}
+body{margin:0;background:var(--bg);color:var(--text);font:16px/1.6 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+a{color:inherit}
+h1,h2,h3{line-height:1.15;margin:0 0 .5em;letter-spacing:-.02em}
+.wrap{width:min(1100px,100% - 2rem);margin-inline:auto}
+section{padding:4.5rem 0}
+.grad-text{background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+.btn{display:inline-block;min-height:44px;border:1px solid var(--line);background:transparent;color:var(--text);padding:.7rem 1.2rem;border-radius:10px;font:inherit;font-weight:600;cursor:pointer;text-decoration:none;transition:transform .2s,border-color .2s,box-shadow .2s}
+.btn:hover{transform:translateY(-2px);border-color:var(--purple)}
+.btn.primary{background:var(--btn);border-color:transparent;box-shadow:0 6px 24px rgba(139,92,246,.35)}
+:focus-visible{outline:2px solid var(--blue);outline-offset:3px}
+
+/* ============ 2. NAV ============ */
+header{position:fixed;top:0;left:0;right:0;z-index:20;padding-top:env(safe-area-inset-top,0px);background:rgba(0,0,0,.75);backdrop-filter:blur(12px);border-bottom:1px solid var(--line)}
+nav{display:flex;align-items:center;justify-content:space-between;height:64px}
+.logo{font-weight:800;font-size:1.25rem;text-decoration:none;letter-spacing:.02em}
+.links{display:flex;gap:1.6rem;list-style:none;margin:0;padding:0}
+.links a{text-decoration:none;color:var(--muted);transition:color .2s}
+.links a:hover{color:var(--text)}
+.menu-btn{display:none;background:none;border:1px solid var(--line);color:var(--text);border-radius:8px;padding:.4rem .7rem;font-size:1.1rem;cursor:pointer}
+@media(max-width:720px){
+  .menu-btn{display:block}
+  .links{display:none;position:absolute;top:100%;left:0;right:0;flex-direction:column;gap:0;background:#000;border-bottom:1px solid var(--line)}
+  .links.open{display:flex}
+  .links a{display:block;padding:1rem}
+}
+
+/* ============ 3. HERO ============ */
+.hero{padding-top:9rem;text-align:center;position:relative;overflow:hidden;isolation:isolate}
+.orb{position:absolute;width:520px;height:520px;border-radius:50%;filter:blur(110px);opacity:.35;z-index:-1;animation:drift 14s ease-in-out infinite alternate}
+.orb.a{background:var(--purple);top:-120px;left:-120px}
+.orb.b{background:var(--blue);top:60px;right:-160px;animation-delay:-7s}
+@keyframes drift{to{transform:translate(60px,40px) scale(1.15)}}
+.hero h1{font-size:clamp(2.2rem,6vw,4.2rem);max-width:14ch;margin-inline:auto}
+.hero p{color:var(--muted);max-width:52ch;margin:0 auto 2rem;font-size:1.1rem}
+.search{display:flex;gap:.5rem;max-width:560px;margin:0 auto}
+.search input{flex:1;min-width:0;background:var(--panel);border:1px solid var(--line);color:var(--text);border-radius:10px;padding:.8rem 1rem;font:inherit}
+.search input:focus{outline:none;border-color:var(--purple);box-shadow:0 0 0 3px rgba(139,92,246,.25)}
+
+/* ============ 4. TOOL CARDS ============ */
+.grid{display:grid;gap:1.2rem;grid-template-columns:repeat(auto-fit,minmax(240px,1fr))}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:1.4rem;display:flex;flex-direction:column;gap:.6rem;transition:transform .25s,border-color .25s,box-shadow .25s}
+.card:hover{transform:translateY(-4px);border-color:var(--purple);box-shadow:0 10px 30px rgba(59,130,246,.15)}
+.card .icon{font-size:1.6rem;width:48px;height:48px;border-radius:12px;display:grid;place-items:center;background:var(--grad)}
+.card p{color:var(--muted);margin:0;flex:1}
+.badge{font-size:.8rem;color:var(--muted)}
+.empty{color:var(--muted);text-align:center;display:none}
+
+/* ============ 5. TUTORIALS ============ */
+.thumb{aspect-ratio:16/9;border-radius:10px;display:grid;place-items:center;font-size:2.2rem;position:relative;overflow:hidden}
+.thumb span{width:54px;height:54px;border-radius:50%;background:rgba(0,0,0,.55);display:grid;place-items:center;font-size:1.3rem;transition:transform .2s}
+.card:hover .thumb span{transform:scale(1.12)}
+.dur{position:absolute;right:8px;bottom:8px;background:rgba(0,0,0,.7);border-radius:6px;font-size:.75rem;padding:.1rem .45rem}
+
+/* ============ 6. ABOUT / SETUP / FOOTER ============ */
+.about{max-width:68ch}
+.about p{color:var(--muted)}
+footer{border-top:1px solid var(--line);padding:3rem 0 2rem;color:var(--muted)}
+.foot{display:grid;gap:2rem;grid-template-columns:repeat(auto-fit,minmax(220px,1fr))}
+footer h3{color:var(--text);font-size:1rem}
+footer a{display:block;text-decoration:none;padding:.4rem 0}
+footer a:hover{color:var(--text)}
+
+/* ============ 7. DIALOG + TOAST ============ */
+dialog{background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:16px;width:min(640px,calc(100% - 1.5rem));padding:1.5rem;max-height:88vh}
+dialog::backdrop{background:rgba(0,0,0,.75)}
+dialog textarea{width:100%;min-height:110px;background:#000;border:1px solid var(--line);color:var(--text);border-radius:10px;padding:.8rem;font:inherit;resize:vertical}
+.row{display:flex;gap:.6rem;flex-wrap:wrap;margin-top:.8rem}
+.status{margin-top:1rem;padding:.8rem 1rem;border-radius:10px;border:1px solid var(--line);white-space:pre-wrap;font-size:.95rem}
+.status.warn{border-color:#a16207;color:#fcd34d}
+.status.ok{border-color:#15803d}
+pre{background:#000;border:1px solid var(--line);border-radius:10px;padding:1rem;overflow-x:auto;font-size:.8rem;line-height:1.5}
+#toast{position:fixed;left:50%;bottom:calc(1.5rem + env(safe-area-inset-bottom,0px));transform:translate(-50%,30px);background:var(--grad);padding:.7rem 1.2rem;border-radius:10px;opacity:0;pointer-events:none;transition:.3s;z-index:50;max-width:90%;text-align:center}
+#toast.show{opacity:1;transform:translate(-50%,0)}
+
+/* scroll reveal (one gentle effect) */
+.reveal{opacity:0;transform:translateY(18px);transition:opacity .6s,transform .6s}
+.reveal.in{opacity:1;transform:none;transition:opacity .6s,transform .25s,border-color .25s,box-shadow .25s}
+.card.reveal.in:hover{transform:translateY(-4px)}
+.skip{position:absolute;left:-999px;top:0;background:#fff;color:#000;padding:.6rem 1rem;z-index:100}
+.skip:focus{left:8px;top:8px}
+.pill{align-self:flex-start;font-size:.8rem;padding:.15rem .6rem;border-radius:99px;border:1px solid #a16207;color:#fcd34d}
+.pill.on{border-color:#15803d;color:#86efac}
+.btn[disabled]{opacity:.6;cursor:not-allowed}
+.btn[disabled]:hover{transform:none;border-color:var(--line)}
+.links a[aria-current="true"]{color:var(--text)}
+.spin{display:inline-block;width:1em;height:1em;border:2px solid rgba(255,255,255,.35);border-top-color:#fff;border-radius:50%;animation:sp .8s linear infinite;vertical-align:-.15em;margin-right:.5rem}
+@keyframes sp{to{transform:rotate(360deg)}}
+.count{color:var(--muted);font-size:.85rem;margin:.3rem 0 1rem;min-height:1.2em}
+.codewrap{position:relative}
+.codewrap .btn{position:absolute;top:.4rem;right:.4rem;min-height:36px;padding:.3rem .7rem;font-size:.85rem}
+.codewrap pre{padding-top:3rem}
+.note{color:var(--muted);margin:0 0 1.2rem}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}.reveal{opacity:1;transform:none}html{scroll-behavior:auto}}
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<noscript><p style="padding:6rem 1rem;text-align:center">NEXORA AI needs JavaScript turned on to show its tools.</p></noscript>
+
+<header>
+  <nav class="wrap" aria-label="Main">
+    <a class="logo grad-text" href="#home">NEXORA AI</a>
+    <button type="button" class="menu-btn" id="menuBtn" aria-label="Toggle menu" aria-controls="links" aria-expanded="false">☰</button>
+    <ul class="links" id="links">
+      <li><a href="#home">Home</a></li>
+      <li><a href="#tools">AI Tools</a></li>
+      <li><a href="#tutorials">Tutorials</a></li>
+      <li><a href="#about">About</a></li>
+    </ul>
+  </nav>
+</header>
+
+<main id="main">
+  <section class="hero" id="home">
+    <div class="orb a"></div><div class="orb b"></div>
+    <div class="wrap">
+      <h1>Your Creative Power, <span class="grad-text">Amplified by AI.</span></h1>
+      <p>Titles, descriptions, scripts and image prompts in one place. Pick a tool and start creating.</p>
+      <form class="search" id="searchForm" role="search">
+        <input id="search" type="search" placeholder="Search AI tools, e.g. script" aria-label="Search AI tools">
+        <button class="btn primary" type="submit">Search</button>
+      </form>
+    </div>
+  </section>
+
+  <section id="tools">
+    <div class="wrap">
+      <h2>AI Tools</h2>
+      <p class="note">Tools marked “Not connected” cannot generate anything until a server-side AI endpoint is added.</p>
+      <p class="count" id="count" aria-live="polite"></p>
+      <div class="grid" id="toolGrid"></div>
+      <p class="empty" id="noResults">No tools match your search. Try “title” or “prompt”.</p>
+    </div>
+  </section>
+
+  <section id="tutorials">
+    <div class="wrap">
+      <h2>Tutorials</h2>
+      <div class="grid" id="tutGrid"></div>
+    </div>
+  </section>
+
+  <section id="about">
+    <div class="wrap about reveal">
+      <h2>About NEXORA AI</h2>
+      <p>NEXORA AI is a set of writing and prompt tools for creators. The tools stay in “not connected” mode until you link a server-side AI endpoint.</p>
+      <button class="btn" id="setupBtn">How to connect an AI model securely</button>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap foot">
+    <div><h3 class="grad-text">NEXORA AI</h3><p>Creative tools, amplified.</p></div>
+    <div><h3>Contact</h3>
+      <a href="mailto:hello@example.com">hello@example.com</a>
+      <a href="tel:+10000000000">+1 000 000 0000</a>
+    </div>
+    <div><h3>Legal</h3>
+      <a href="#" data-legal="Privacy Policy">Privacy Policy</a>
+      <a href="#" data-legal="Terms of Service">Terms of Service</a>
+      <a href="#" data-legal="Cookie Policy">Cookie Policy</a>
+    </div>
+  </div>
+  <div class="wrap" style="margin-top:2rem;font-size:.85rem">© <span id="year"></span> NEXORA AI. All rights reserved.</div>
+</footer>
+
+<!-- Tool dialog -->
+<dialog id="toolDialog" aria-labelledby="dlgTitle">
+  <h2 id="dlgTitle"></h2>
+  <p id="dlgDesc" style="color:var(--muted)"></p>
+  <label for="dlgInput" style="font-weight:600">Your input</label>
+  <textarea id="dlgInput" maxlength="1000"></textarea>
+  <div class="count" id="charCount">0 / 1000</div>
+  <div class="row">
+    <button class="btn primary" id="runBtn">Generate</button>
+    <button class="btn" id="copyBtn" hidden>Copy result</button>
+    <button class="btn" id="closeBtn">Close</button>
+  </div>
+  <div class="status" id="dlgStatus" role="status" aria-live="polite" hidden></div>
+</dialog>
+
+<!-- Info dialog (setup guide + legal placeholders) -->
+<dialog id="infoDialog" aria-labelledby="infoTitle">
+  <h2 id="infoTitle"></h2>
+  <div id="infoBody"></div>
+  <div class="row"><button class="btn" id="infoClose">Close</button></div>
+</dialog>
+
+<div id="toast" role="status" aria-live="polite"></div>
+
+<script src="config.js"></script>
+<script>
+/* ============ A. SETTINGS (the endpoint lives in config.js) ============ */
+const CONFIG = { API_ENDPOINT: "" };
+// config.js sets window.NEXORA_CONFIG. Only an https:// address counts as connected.
+const _ep = ((window.NEXORA_CONFIG && window.NEXORA_CONFIG.API_ENDPOINT) || "").trim();
+if(_ep.indexOf("https://")===0) CONFIG.API_ENDPOINT = _ep;
+
+/* ============ B. TOOLS (add a tool = add one object) ============ */
+const TOOLS = [
+  {id:"title", keys:"headline youtube blog idea",  icon:"✦", name:"AI Title Generator",        desc:"Catchy titles for videos, posts and articles.", hint:"Describe your topic, e.g. “budget travel in Japan”"},
+  {id:"desc", keys:"summary product about text",   icon:"✎", name:"AI Description Generator",  desc:"Clear descriptions for products, videos and pages.", hint:"Describe what you are writing about"},
+  {id:"script", keys:"video story youtube tiktok", icon:"▶", name:"AI Script Generator",       desc:"Short-form and long-form scripts with a hook.", hint:"Give the topic, length and tone"},
+  {id:"image", keys:"picture art midjourney photo",  icon:"◐", name:"AI Image Prompt Generator", desc:"Detailed prompts for image generation tools.", hint:"Describe the picture you imagine"}
+];
+
+/* ============ C. TUTORIALS (add your own video links in "url") ============ */
+const TUTORIALS = [
+  {title:"Getting started with NEXORA", desc:"A quick tour of the tools and how to get better results.", time:"4:20", icon:"🚀", c:["#6d28d9","#1d4ed8"], url:""},
+  {title:"Writing prompts that work",   desc:"Simple patterns for clearer inputs and stronger outputs.", time:"7:05", icon:"✍️", c:["#7c3aed","#0ea5e9"], url:""},
+  {title:"From idea to full script",    desc:"Turn a rough idea into a structured script step by step.", time:"9:40", icon:"🎬", c:["#4f46e5","#9333ea"], url:""}
+];
+
+/* ============ D. HELPERS ============ */
+const $ = s => document.querySelector(s);
+function toast(msg){const t=$("#toast");t.textContent=msg;t.classList.add("show");clearTimeout(toast.id);toast.id=setTimeout(()=>t.classList.remove("show"),2600)}
+function escapeHtml(s){return s.replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
+
+/* ============ E. RENDER CARDS ============ */
+function renderTools(){
+  $("#toolGrid").innerHTML = TOOLS.map(t=>`
+    <article class="card reveal" data-search="${escapeHtml((t.name+" "+t.desc+" "+t.keys).toLowerCase())}">
+      <div class="icon" aria-hidden="true">${t.icon}</div>
+      <h3>${t.name}</h3><p>${t.desc}</p>
+      <span class="pill ${CONFIG.API_ENDPOINT?"on":""}">${CONFIG.API_ENDPOINT?"Endpoint set (test it)":"Not connected to an AI model"}</span>
+      <button class="btn primary" data-tool="${t.id}">Open tool</button>
+    </article>`).join("");
+}
+function renderTutorials(){
+  $("#tutGrid").innerHTML = TUTORIALS.map((t,i)=>`
+    <article class="card reveal">
+      <div class="thumb" style="background:linear-gradient(135deg,${t.c[0]},${t.c[1]})"><span aria-hidden="true">▶</span><b class="dur">${t.time}</b></div>
+      <h3>${t.title}</h3><p>${t.desc}</p>
+      ${t.url?"":'<span class="pill">Video link not added yet</span>'}
+      <button class="btn" data-video="${i}">Watch tutorial</button>
+    </article>`).join("");
+}
+
+/* ============ F. SEARCH ============ */
+function filterTools(){
+  const q = $("#search").value.trim().toLowerCase(); let n = 0;
+  document.querySelectorAll("#toolGrid .card").forEach(c=>{
+    const show = c.dataset.search.includes(q); c.style.display = show ? "" : "none"; if(show) n++;
+  });
+  $("#noResults").style.display = n ? "none" : "block";
+  $("#count").textContent = q ? n+" of "+TOOLS.length+" tools shown" : "";
+}
+$("#search").addEventListener("input", filterTools);
+$("#searchForm").addEventListener("submit", e=>{e.preventDefault();filterTools();$("#tools").scrollIntoView()});
+
+/* ============ G. TOOL DIALOG ============ */
+const MAX_CHARS = 1000, TIMEOUT_MS = 30000;
+let current = null, lastResult = "";
+function openDlg(d){ if(typeof d.showModal==="function") d.showModal(); else d.setAttribute("open",""); }
+function closeDlg(d){ if(typeof d.close==="function") d.close(); else d.removeAttribute("open"); }
+async function copyText(text){
+  try{ await navigator.clipboard.writeText(text); return toast("Copied to clipboard"); }catch{}
+  try{
+    const t=document.createElement("textarea"); t.value=text; t.style.cssText="position:fixed;opacity:0";
+    document.body.appendChild(t); t.select(); const ok=document.execCommand("copy"); t.remove();
+    toast(ok?"Copied to clipboard":"Copy failed. Select the text and copy it manually.");
+  }catch{ toast("Copy failed. Select the text and copy it manually.") }
+}
+function setStatus(text, kind){const s=$("#dlgStatus");s.hidden=!text;s.textContent=text||"";s.className="status "+(kind||"")}
+function updateRunButton(){const b=$("#runBtn");b.disabled=!CONFIG.API_ENDPOINT;b.textContent=CONFIG.API_ENDPOINT?"Generate":"Not connected"}
+function openTool(id){
+  current = TOOLS.find(t=>t.id===id); lastResult="";
+  $("#dlgTitle").textContent = current.name; $("#dlgDesc").textContent = current.desc;
+  $("#dlgInput").value=""; $("#dlgInput").placeholder=current.hint; $("#charCount").textContent="0 / "+MAX_CHARS;
+  $("#copyBtn").hidden = true; updateRunButton();
+  setStatus(CONFIG.API_ENDPOINT ? "" : "This tool is not connected to an AI model, so it cannot generate anything yet. See “How to connect an AI model securely” in the About section.", CONFIG.API_ENDPOINT ? "" : "warn");
+  openDlg($("#toolDialog"));
+}
+async function runTool(){
+  if(!CONFIG.API_ENDPOINT) return;
+  const input = $("#dlgInput").value.trim();
+  if(!input){ setStatus("Type something first, then press Generate.","warn"); $("#dlgInput").focus(); return }
+  if(!navigator.onLine) return setStatus("You appear to be offline. Check your connection and try again.","warn");
+  const btn=$("#runBtn"); btn.disabled=true; btn.innerHTML='<span class="spin"></span>Generating…';
+  $("#copyBtn").hidden=true; setStatus("Working. This can take a few seconds.");
+  const ctrl=new AbortController(), timer=setTimeout(()=>ctrl.abort(),TIMEOUT_MS);
+  try{
+    // Sends only the tool name and the user's text. The server adds the API key and instructions.
+    const res = await fetch(CONFIG.API_ENDPOINT,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({tool:current.id,input}),signal:ctrl.signal});
+    if(!res.ok){
+      let m=""; try{ m=(await res.json()).error }catch{}
+      throw new Error(m || (res.status===429 ? "Too many requests. Wait a minute and try again." : "The server returned an error ("+res.status+"). Try again later."));
+    }
+    let data; try{ data=await res.json() }catch{ throw new Error("The server did not return valid JSON.") }
+    if(typeof data.result!=="string"||!data.result.trim()) throw new Error('The server response must look like {"result":"..."}.');
+    lastResult=data.result; setStatus(lastResult,"ok"); $("#copyBtn").hidden=false;
+  }catch(err){
+    setStatus(err.name==="AbortError" ? "The request took too long. Try again."
+      : err instanceof TypeError ? "Could not reach the server. Check the endpoint address, your connection, and that the server allows requests from this site (CORS)."
+      : err.message,"warn");
+  }finally{ clearTimeout(timer); updateRunButton() }
+}
+$("#runBtn").onclick = runTool;
+$("#closeBtn").onclick = ()=>closeDlg($("#toolDialog"));
+$("#copyBtn").onclick = ()=>copyText(lastResult);
+$("#dlgInput").addEventListener("input",()=>{$("#charCount").textContent=$("#dlgInput").value.length+" / "+MAX_CHARS});
+
+/* ============ H. INFO DIALOG (setup guide + legal placeholders) ============ */
+function openInfo(title, html){$("#infoTitle").textContent=title;$("#infoBody").innerHTML=html;openDlg($("#infoDialog"))}
+$("#infoClose").onclick = ()=>closeDlg($("#infoDialog"));
+$("#setupBtn").onclick = ()=>openInfo("Connect the AI backend",`
+  <p>The tools call a small server (a Cloudflare Worker) that holds the API key. The key never appears on this website.</p>
+  <ol>
+    <li>Get a free Gemini API key at aistudio.google.com. Do not turn on billing.</li>
+    <li>Create a free Cloudflare account, then Workers &amp; Pages &rarr; Create &rarr; Hello World &rarr; Deploy.</li>
+    <li>Open the Worker &rarr; Edit code. Replace everything with the code below and Deploy.</li>
+    <li>Settings &rarr; Variables and Secrets: add secret <code>GEMINI_API_KEY</code> and text <code>ALLOWED_ORIGIN</code> = <code>https://ryukpettro-hub.github.io</code>.</li>
+    <li>Copy the Worker address (ends in <code>.workers.dev</code>) into <code>config.js</code> on GitHub.</li>
+    <li>Reload this site and test each tool.</li>
+  </ol>
+  <div class="codewrap"><button type="button" class="btn" data-copycode>Copy code</button><pre>${escapeHtml(`// NEXORA AI backend: a Cloudflare Worker that calls the Google Gemini API.
+// The API key is NEVER in this file. It is stored as a Cloudflare secret named GEMINI_API_KEY.
+//
+// Settings (Cloudflare dashboard > your Worker > Settings > Variables and Secrets):
+//   GEMINI_API_KEY  (Secret) your key from Google AI Studio
+//   ALLOWED_ORIGIN  (Text)   https://ryukpettro-hub.github.io   (no slash, no path)
+//   GEMINI_MODEL    (Text, optional) defaults to gemini-2.5-flash-lite
+
+const DEFAULT_MODEL = "gemini-2.5-flash-lite";
+const MAX_INPUT = 1000;
+
+// What each tool asks the AI to do. Edit these to change the results.
+const TOOLS = {
+  title: {
+    max: 500,
+    system: "You write catchy, specific titles for videos, posts and articles. Reply with exactly 10 different title options as a numbered list. No introduction and no extra commentary."
+  },
+  desc: {
+    max: 600,
+    system: "You write clear, engaging descriptions. Reply with one description of about 80 to 120 words, followed by a line starting with 'Keywords:' and 6 comma-separated keywords. No introduction."
+  },
+  script: {
+    max: 1200,
+    system: "You write short video scripts. Reply with: a one-line hook, then the script in short spoken sentences, then a one-line call to action. Mark scenes like [Scene 1]. Keep it under 300 words unless the user asks for a length."
+  },
+  image: {
+    max: 500,
+    system: "You write detailed prompts for AI image generators. Reply with 3 different prompts as a numbered list. Each prompt names the subject, style, lighting, composition and mood in one paragraph. No introduction."
+  }
+};
+
+export default {
+  async fetch(request, env) {
+    const allowed = env.ALLOWED_ORIGIN || "";
+    const cors = {
+      "Access-Control-Allow-Origin": allowed,
+      "Access-Control-Allow-Methods": "POST, OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type",
+      "Vary": "Origin"
+    };
+    const reply = (obj, status = 200) =>
+      new Response(JSON.stringify(obj), {
+        status,
+        headers: { ...cors, "Content-Type": "application/json" }
+      });
+
+    if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: cors });
+    if (request.method !== "POST") return reply({ error: "Use POST." }, 405);
+
+    // Only your website may call this backend from a browser.
+    if (!allowed || request.headers.get("Origin") !== allowed) {
+      return reply({ error: "This site is not allowed to use this service." }, 403);
+    }
+    if (!env.GEMINI_API_KEY) {
+      return reply({ error: "The server is missing its GEMINI_API_KEY setting." }, 500);
+    }
+
+    let body;
+    try { body = await request.json(); }
+    catch { return reply({ error: "Send JSON like {\"tool\":\"title\",\"input\":\"...\"}." }, 400); }
+
+    const tool = TOOLS[body && body.tool];
+    const input = body && typeof body.input === "string" ? body.input.trim() : "";
+    if (!tool) return reply({ error: "Unknown tool." }, 400);
+    if (!input) return reply({ error: "Please type something first." }, 400);
+    if (input.length > MAX_INPUT) return reply({ error: "Input is too long. Maximum " + MAX_INPUT + " characters." }, 400);
+
+    const model = env.GEMINI_MODEL || DEFAULT_MODEL;
+    const url = "https://generativelanguage.googleapis.com/v1beta/models/" + encodeURIComponent(model) + ":generateContent";
+
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 25000);
+    let res;
+    try {
+      res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-goog-api-key": env.GEMINI_API_KEY },
+        body: JSON.stringify({
+          systemInstruction: { parts: [{ text: tool.system }] },
+          contents: [{ role: "user", parts: [{ text: input }] }],
+          generationConfig: { maxOutputTokens: tool.max, temperature: 0.9 }
+        }),
+        signal: ctrl.signal
+      });
+    } catch (err) {
+      return reply({ error: err.name === "AbortError" ? "The AI took too long to answer. Try again." : "Could not reach the AI service. Try again." }, 504);
+    } finally {
+      clearTimeout(timer);
+    }
+
+    if (!res.ok) {
+      console.error("Gemini error", res.status, (await res.text()).slice(0, 300));
+      if (res.status === 429) return reply({ error: "The AI service is busy or today's free limit was reached. Try again later." }, 429);
+      if (res.status === 404) return reply({ error: "The AI model name was not found. Check GEMINI_MODEL in the Worker settings." }, 502);
+      if (res.status === 400 || res.status === 403) return reply({ error: "The AI service rejected the request. Check the API key and model name in the Worker settings." }, 502);
+      return reply({ error: "The AI service had a problem. Try again later." }, 502);
+    }
+
+    const data = await res.json();
+    const parts = data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts;
+    const text = (parts || []).map(p => p.text || "").join("").trim();
+    if (!text) return reply({ error: "The AI could not produce a result for that input. Try rephrasing it." }, 422);
+    return reply({ result: text });
+  }
+};
+`)}</pre></div>`);
+document.querySelectorAll("[data-legal]").forEach(a=>a.addEventListener("click",e=>{
+  e.preventDefault(); openInfo(a.dataset.legal,"<p>Placeholder page. Replace this with your real policy text or link this item to a page on your site. Have a qualified professional review legal documents.</p>");
+}));
+
+/* ============ I. CLICK HANDLING FOR CARDS ============ */
+document.addEventListener("click",e=>{
+  const cc=e.target.closest("[data-copycode]"); if(cc) return copyText(cc.nextElementSibling.textContent);
+  const tool=e.target.closest("[data-tool]"); if(tool) return openTool(tool.dataset.tool);
+  const vid=e.target.closest("[data-video]");
+  if(vid){
+    const t=TUTORIALS[vid.dataset.video];
+    if(t.url) window.open(t.url,"_blank","noopener");
+    else toast("No video linked yet. Add a link in the TUTORIALS list.");
+  }
+});
+
+/* ============ J. MOBILE MENU, YEAR, SCROLL REVEAL ============ */
+$("#menuBtn").onclick = ()=>{const o=$("#links").classList.toggle("open");$("#menuBtn").setAttribute("aria-expanded",o)};
+$("#links").addEventListener("click",e=>{if(e.target.tagName==="A")$("#links").classList.remove("open")});
+$("#year").textContent = new Date().getFullYear();
+renderTools(); renderTutorials();
+const io = new IntersectionObserver(es=>es.forEach(x=>{if(x.isIntersecting){x.target.classList.add("in");io.unobserve(x.target)}}),{threshold:.15});
+document.querySelectorAll(".reveal").forEach(el=>io.observe(el));
+
+/* ============ K. EXTRA BEHAVIOR ============ */
+// Close a dialog when the dark area outside it is tapped
+document.querySelectorAll("dialog").forEach(d=>d.addEventListener("click",e=>{
+  const r=d.getBoundingClientRect();
+  if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom) closeDlg(d);
+}));
+// Close the mobile menu with Escape or a tap elsewhere
+function closeMenu(){$("#links").classList.remove("open");$("#menuBtn").setAttribute("aria-expanded","false")}
+document.addEventListener("keydown",e=>{if(e.key==="Escape")closeMenu()});
+document.addEventListener("click",e=>{if(!e.target.closest("header"))closeMenu()});
+// Highlight the nav link for the section on screen
+const spy = new IntersectionObserver(es=>es.forEach(x=>{
+  if(x.isIntersecting) document.querySelectorAll(".links a").forEach(a=>a.setAttribute("aria-current",a.getAttribute("href")==="#"+x.target.id?"true":"false"));
+}),{rootMargin:"-40% 0px -55% 0px"});
+document.querySelectorAll("main section").forEach(sec=>spy.observe(sec));
+</script>
+</body>
+</html>
