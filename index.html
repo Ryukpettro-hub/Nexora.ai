@@ -212,14 +212,13 @@ pre{background:#000;border:1px solid var(--line);border-radius:10px;padding:1rem
 
 <div id="toast" role="status" aria-live="polite"></div>
 
+<script src="config.js"></script>
 <script>
-/* ============ A. SETTINGS (edit this block) ============ */
-const CONFIG = {
-  // AI INTEGRATION POINT: put the full https:// URL of YOUR server endpoint here.
-  // GitHub Pages only hosts static files, so this must point to a server hosted elsewhere.
-  // Leave empty until that server exists. The browser never holds an API key.
-  API_ENDPOINT: ""
-};
+/* ============ A. SETTINGS (the endpoint lives in config.js) ============ */
+const CONFIG = { API_ENDPOINT: "" };
+// config.js sets window.NEXORA_CONFIG. Only an https:// address counts as connected.
+const _ep = ((window.NEXORA_CONFIG && window.NEXORA_CONFIG.API_ENDPOINT) || "").trim();
+if(_ep.indexOf("https://")===0) CONFIG.API_ENDPOINT = _ep;
 
 /* ============ B. TOOLS (add a tool = add one object) ============ */
 const TOOLS = [
@@ -307,8 +306,10 @@ async function runTool(){
   try{
     // Sends only the tool name and the user's text. The server adds the API key and instructions.
     const res = await fetch(CONFIG.API_ENDPOINT,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({tool:current.id,input}),signal:ctrl.signal});
-    if(res.status===429) throw new Error("Too many requests. Wait a minute and try again.");
-    if(!res.ok) throw new Error("The server returned an error ("+res.status+"). Try again later.");
+    if(!res.ok){
+      let m=""; try{ m=(await res.json()).error }catch{}
+      throw new Error(m || (res.status===429 ? "Too many requests. Wait a minute and try again." : "The server returned an error ("+res.status+"). Try again later."));
+    }
     let data; try{ data=await res.json() }catch{ throw new Error("The server did not return valid JSON.") }
     if(typeof data.result!=="string"||!data.result.trim()) throw new Error('The server response must look like {"result":"..."}.');
     lastResult=data.result; setStatus(lastResult,"ok"); $("#copyBtn").hidden=false;
@@ -326,48 +327,122 @@ $("#dlgInput").addEventListener("input",()=>{$("#charCount").textContent=$("#dlg
 /* ============ H. INFO DIALOG (setup guide + legal placeholders) ============ */
 function openInfo(title, html){$("#infoTitle").textContent=title;$("#infoBody").innerHTML=html;openDlg($("#infoDialog"))}
 $("#infoClose").onclick = ()=>closeDlg($("#infoDialog"));
-$("#setupBtn").onclick = ()=>openInfo("Connect an AI model securely",`
-  <p>API keys must live only on a server. Anyone can read code that runs in a browser. GitHub Pages only hosts static files, so the server must be hosted elsewhere (for example a free-tier serverless function) and must allow requests from your site (CORS).</p>
+$("#setupBtn").onclick = ()=>openInfo("Connect the AI backend",`
+  <p>The tools call a small server (a Cloudflare Worker) that holds the API key. The key never appears on this website.</p>
   <ol>
-    <li>Create an endpoint on your server (Node, Python, a serverless function, etc.).</li>
-    <li>Store the key as an environment variable, never in this file or in Git.</li>
-    <li>The browser sends <code>{tool, input}</code>. The server builds the prompt, calls the AI provider, and returns <code>{result}</code>.</li>
-    <li>Add rate limits and input length limits on the server.</li>
-    <li>Set <code>CONFIG.API_ENDPOINT</code> to the full https:// address of that endpoint, then test each tool.</li>
+    <li>Get a free Gemini API key at aistudio.google.com. Do not turn on billing.</li>
+    <li>Create a free Cloudflare account, then Workers &amp; Pages &rarr; Create &rarr; Hello World &rarr; Deploy.</li>
+    <li>Open the Worker &rarr; Edit code. Replace everything with the code below and Deploy.</li>
+    <li>Settings &rarr; Variables and Secrets: add secret <code>GEMINI_API_KEY</code> and text <code>ALLOWED_ORIGIN</code> = <code>https://ryukpettro-hub.github.io</code>.</li>
+    <li>Copy the Worker address (ends in <code>.workers.dev</code>) into <code>config.js</code> on GitHub.</li>
+    <li>Reload this site and test each tool.</li>
   </ol>
-  <p>Example server (Node + Express). Adapt the provider call to the service you use:</p>
-  <div class="codewrap"><button type="button" class="btn" data-copycode>Copy code</button><pre>${escapeHtml(`import express from "express";
-const app = express();
-app.use(express.json({ limit: "10kb" }));
-app.use((req, res, next) => {            // CORS: allow only your site
-  res.set("Access-Control-Allow-Origin", "https://YOUR-NAME.github.io");
-  res.set("Access-Control-Allow-Headers", "Content-Type");
-  if (req.method === "OPTIONS") return res.sendStatus(204);
-  next();
-});
+  <div class="codewrap"><button type="button" class="btn" data-copycode>Copy code</button><pre>${escapeHtml(`// NEXORA AI backend: a Cloudflare Worker that calls the Google Gemini API.
+// The API key is NEVER in this file. It is stored as a Cloudflare secret named GEMINI_API_KEY.
+//
+// Settings (Cloudflare dashboard > your Worker > Settings > Variables and Secrets):
+//   GEMINI_API_KEY  (Secret) your key from Google AI Studio
+//   ALLOWED_ORIGIN  (Text)   https://ryukpettro-hub.github.io   (no slash, no path)
+//   GEMINI_MODEL    (Text, optional) defaults to gemini-2.5-flash-lite
 
-const PROMPTS = {
-  title:  "Write 10 catchy titles for: ",
-  desc:   "Write a clear description for: ",
-  script: "Write a short video script with a hook for: ",
-  image:  "Write a detailed image-generation prompt for: "
+const DEFAULT_MODEL = "gemini-2.5-flash-lite";
+const MAX_INPUT = 1000;
+
+// What each tool asks the AI to do. Edit these to change the results.
+const TOOLS = {
+  title: {
+    max: 500,
+    system: "You write catchy, specific titles for videos, posts and articles. Reply with exactly 10 different title options as a numbered list. No introduction and no extra commentary."
+  },
+  desc: {
+    max: 600,
+    system: "You write clear, engaging descriptions. Reply with one description of about 80 to 120 words, followed by a line starting with 'Keywords:' and 6 comma-separated keywords. No introduction."
+  },
+  script: {
+    max: 1200,
+    system: "You write short video scripts. Reply with: a one-line hook, then the script in short spoken sentences, then a one-line call to action. Mark scenes like [Scene 1]. Keep it under 300 words unless the user asks for a length."
+  },
+  image: {
+    max: 500,
+    system: "You write detailed prompts for AI image generators. Reply with 3 different prompts as a numbered list. Each prompt names the subject, style, lighting, composition and mood in one paragraph. No introduction."
+  }
 };
 
-app.post("/api/generate", async (req, res) => {
-  const { tool, input } = req.body;
-  if (!PROMPTS[tool] || typeof input !== "string" || input.length > 1000)
-    return res.status(400).json({ error: "Bad request" });
+export default {
+  async fetch(request, env) {
+    const allowed = env.ALLOWED_ORIGIN || "";
+    const cors = {
+      "Access-Control-Allow-Origin": allowed,
+      "Access-Control-Allow-Methods": "POST, OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type",
+      "Vary": "Origin"
+    };
+    const reply = (obj, status = 200) =>
+      new Response(JSON.stringify(obj), {
+        status,
+        headers: { ...cors, "Content-Type": "application/json" }
+      });
 
-  const r = await fetch(PROVIDER_URL, {            // your AI provider's URL
-    method: "POST",
-    headers: { "Authorization": "Bearer " + process.env.AI_API_KEY,
-               "Content-Type": "application/json" },
-    body: JSON.stringify({ /* provider format */ prompt: PROMPTS[tool] + input })
-  });
-  const data = await r.json();
-  res.json({ result: /* pull the text out of data */ "" });
-});
-app.listen(3000);`)}</pre></div>`);
+    if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: cors });
+    if (request.method !== "POST") return reply({ error: "Use POST." }, 405);
+
+    // Only your website may call this backend from a browser.
+    if (!allowed || request.headers.get("Origin") !== allowed) {
+      return reply({ error: "This site is not allowed to use this service." }, 403);
+    }
+    if (!env.GEMINI_API_KEY) {
+      return reply({ error: "The server is missing its GEMINI_API_KEY setting." }, 500);
+    }
+
+    let body;
+    try { body = await request.json(); }
+    catch { return reply({ error: "Send JSON like {\"tool\":\"title\",\"input\":\"...\"}." }, 400); }
+
+    const tool = TOOLS[body && body.tool];
+    const input = body && typeof body.input === "string" ? body.input.trim() : "";
+    if (!tool) return reply({ error: "Unknown tool." }, 400);
+    if (!input) return reply({ error: "Please type something first." }, 400);
+    if (input.length > MAX_INPUT) return reply({ error: "Input is too long. Maximum " + MAX_INPUT + " characters." }, 400);
+
+    const model = env.GEMINI_MODEL || DEFAULT_MODEL;
+    const url = "https://generativelanguage.googleapis.com/v1beta/models/" + encodeURIComponent(model) + ":generateContent";
+
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 25000);
+    let res;
+    try {
+      res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-goog-api-key": env.GEMINI_API_KEY },
+        body: JSON.stringify({
+          systemInstruction: { parts: [{ text: tool.system }] },
+          contents: [{ role: "user", parts: [{ text: input }] }],
+          generationConfig: { maxOutputTokens: tool.max, temperature: 0.9 }
+        }),
+        signal: ctrl.signal
+      });
+    } catch (err) {
+      return reply({ error: err.name === "AbortError" ? "The AI took too long to answer. Try again." : "Could not reach the AI service. Try again." }, 504);
+    } finally {
+      clearTimeout(timer);
+    }
+
+    if (!res.ok) {
+      console.error("Gemini error", res.status, (await res.text()).slice(0, 300));
+      if (res.status === 429) return reply({ error: "The AI service is busy or today's free limit was reached. Try again later." }, 429);
+      if (res.status === 404) return reply({ error: "The AI model name was not found. Check GEMINI_MODEL in the Worker settings." }, 502);
+      if (res.status === 400 || res.status === 403) return reply({ error: "The AI service rejected the request. Check the API key and model name in the Worker settings." }, 502);
+      return reply({ error: "The AI service had a problem. Try again later." }, 502);
+    }
+
+    const data = await res.json();
+    const parts = data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts;
+    const text = (parts || []).map(p => p.text || "").join("").trim();
+    if (!text) return reply({ error: "The AI could not produce a result for that input. Try rephrasing it." }, 422);
+    return reply({ result: text });
+  }
+};
+`)}</pre></div>`);
 document.querySelectorAll("[data-legal]").forEach(a=>a.addEventListener("click",e=>{
   e.preventDefault(); openInfo(a.dataset.legal,"<p>Placeholder page. Replace this with your real policy text or link this item to a page on your site. Have a qualified professional review legal documents.</p>");
 }));
